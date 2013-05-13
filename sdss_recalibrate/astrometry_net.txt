@@ -3,10 +3,12 @@ anargs="-S R -L 13 -E -M -j 0.4 -n 100"
 for hp in *_hp_*.fits; do
     outroot=$(echo $hp | sed -e 's|_hp_|_and_|' -e 's|\.fits$||')
     healpix=$(echo $hp | sed -e 's|^.*_hp_||' -e 's|\.fits$||')
-    build-index -i $hp -o ${outroot}_0.fits -I 77770 -P 0 $anargs -H $healpix -s 16
-    build-index -1 ${outroot}_0.fits -o ${outroot}_1.fits -I 77771 -P 1 $anargs -H $healpix -s 16 &
-    build-index -1 ${outroot}_0.fits -o ${outroot}_2.fits -I 77772 -P 2 $anargs -H $healpix -s 16 &
-    build-index -1 ${outroot}_0.fits -o ${outroot}_3.fits -I 77773 -P 3 $anargs -H $healpix -s 16 &
-    build-index -1 ${outroot}_0.fits -o ${outroot}_4.fits -I 77774 -P 4 $anargs -H $healpix -s 16 &
+    echo build-index -i $hp -o ${outroot}_0.fits -I 77770 -P 0 $anargs -H $healpix -s 16 >> base.txt
+    echo build-index -1 ${outroot}_0.fits -o ${outroot}_1.fits -I 77771 -P 1 $anargs -H $healpix -s 16 >> next.txt
+    echo build-index -1 ${outroot}_0.fits -o ${outroot}_2.fits -I 77772 -P 2 $anargs -H $healpix -s 16 >> next.txt
+    echo build-index -1 ${outroot}_0.fits -o ${outroot}_3.fits -I 77773 -P 3 $anargs -H $healpix -s 16 >> next.txt
+    echo build-index -1 ${outroot}_0.fits -o ${outroot}_4.fits -I 77774 -P 4 $anargs -H $healpix -s 16 >> next.txt
     wait
 done
+cat base.txt | xargs -I CMD --max-procs=6 bash -c CMD
+cat next.txt | xargs -I CMD --max-procs=6 bash -c CMD
