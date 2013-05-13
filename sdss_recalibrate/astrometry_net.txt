@@ -1,5 +1,7 @@
-hpsplit -o 'sdss-dr9-recal-ps1-v2_hp_%i.fits' -r RA -d DEC -n 16 astromSweeps-*.fits
-anargs="-S R -L 13 -E -M -j 0.4 -n 100"
+python ~/hsc/hscMisc/sdss_recalibrate/sdss-select.py astromSweeps-*.fits
+ulimit -n 4096
+hpsplit -o 'sdss-dr9-recal-ps1-v2_hp_%i.fits' -r ra -d dec -n 16 subset_astromSweeps-*.fits
+anargs="-S r -L 13 -E -M -j 0.4 -n 100"
 for hp in *_hp_*.fits; do
     outroot=$(echo $hp | sed -e 's|_hp_|_and_|' -e 's|\.fits$||')
     healpix=$(echo $hp | sed -e 's|^.*_hp_||' -e 's|\.fits$||')
