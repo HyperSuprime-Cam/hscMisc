@@ -16,6 +16,7 @@ import tempfile
 import multiprocessing
 from argparse import ArgumentParser
 
+import numpy
 import pyfits
 
 FILTERS = "grizy"
@@ -28,7 +29,7 @@ def convert(inName, outName):
                              pyfits.Column(name="ra", format="D"),
                              pyfits.Column(name="dec", format="D")] +
                             [pyfits.Column(name=name, format="E") for name in FILTERS] +
-                            [pyfits.Column(name=name + "_err", format="E") for name in FILTERS] +
+                            [pyfits.Column(name=name + "_err", format="E") for name in FILTERS]
                             )
 
     outHdu = pyfits.new_table(schema, nrows=len(inData))
@@ -74,11 +75,11 @@ def generateIndexes(inName, outName, index, healpix=None, nside=None):
         args += " -H %d" % healpix
     if nside is not None:
         args += " -s %d" % nside
-    system("build-index -i " + inName + " -o " + outName + "_0.fits -I " + str(index) + "0 -P 0 " + args)
-    system("build-index -1 " + outName + "_0.fits -o " + outName + "_1.fits -I " + str(index) + "1 -P 1 " + args)
-    system("build-index -1 " + outName + "_0.fits -o " + outName + "_2.fits -I " + str(index) + "2 -P 2 " + args)
-    system("build-index -1 " + outName + "_0.fits -o " + outName + "_3.fits -I " + str(index) + "3 -P 3 " + args)
-    system("build-index -1 " + outName + "_0.fits -o " + outName + "_4.fits -I " + str(index) + "4 -P 4 " + args)
+    system("build-astrometry-index -i " + inName + " -o " + outName + "_0.fits -I " + str(index) + "0 -P 0 " + args)
+    system("build-astrometry-index -1 " + outName + "_0.fits -o " + outName + "_1.fits -I " + str(index) + "1 -P 1 " + args)
+    system("build-astrometry-index -1 " + outName + "_0.fits -o " + outName + "_2.fits -I " + str(index) + "2 -P 2 " + args)
+    system("build-astrometry-index -1 " + outName + "_0.fits -o " + outName + "_3.fits -I " + str(index) + "3 -P 3 " + args)
+    system("build-astrometry-index -1 " + outName + "_0.fits -o " + outName + "_4.fits -I " + str(index) + "4 -P 4 " + args)
 
 
 class _Caller(object):
@@ -107,11 +108,11 @@ if __name__ == "__main__":
     parser.add_argument("input", nargs="*", help="Input files")
     parser.add_argument("-j", dest="threads", type=int, default=0, help="Number of threads")
     parser.add_argument("-o", "--output", required=True, help="Output root name")
-    parser.add_argument("-s", "--nside", default=16, help="HEALPix nside (power of 2)")
+    parser.add_argument("-s", "--nside", default=32, help="HEALPix nside (power of 2)")
     args = parser.parse_args()
 
     ps1List = []
-    mapSubset = MapFunc(args.threads, subsetSchlafly)
+    mapSubset = MapFunc(args.threads, convert)
     for i, inName in enumerate(args.input):
         ps1Name = "%s_in_%d.fits" % (args.output, i)
         ps1List.append(ps1Name)
