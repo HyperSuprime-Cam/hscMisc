@@ -27,24 +27,13 @@ def convert(inName, outName):
         return
     inFile = pyfits.open(inName)
     inData = inFile[1].data
+    print "Read %d rows from %s" % (len(inData), inName)
 
-    schema = pyfits.ColDefs([pyfits.Column(name="id", format="K"),
-                             pyfits.Column(name="ra", format="D"),
-                             pyfits.Column(name="dec", format="D")] +
-                            [pyfits.Column(name=name, format="E") for name in FILTERS] +
-                            [pyfits.Column(name=name + "_err", format="E") for name in FILTERS]
-                            )
+    # Throw out the bad stuff
+    mag = numpy.ndarray((5, len(inData)))
+    err = numpy.ndarray((5, len(inData)))
 
-    outHdu = pyfits.new_table(schema, nrows=len(inData))
-    outData = outHdu.data
-
-    outData.ident = inData.o_objID
-    outData.ra = inData.o_ra
-    outData.dec = inData.o_dec
-    for f in FILTERS:
-        # Some of the below (e.g., "mean") are functions in the pyfits.FITS_rec class,
-        # so we need to access them differently than just grabbing an attribute.
-
+    for i, f in enumerate(FILTERS):
         mean = inData.field("o_" + f + "MeanPSFMag")
         meanErr = inData.field("o_" + f + "MeanPSFMagErr")
         badMean = mean == -999
@@ -53,14 +42,42 @@ def convert(inName, outName):
         stackErr = inData.field("o_" + f + "StackPSFMagErr")
         badStack = stack == -999
 
+        mag[i,:] = numpy.where(badMean, numpy.where(badStack, numpy.nan, stack), mean)
+        err[i,:] = numpy.where(badMean, numpy.where(badStack, numpy.nan, stackErr), meanErr)
+
+    numBad = numpy.isnan(mag).sum(axis=0)
+    isBad = numBad > 3
+    isGood = numpy.logical_not(isBad)
+
+    ident = inData.o_objID[isGood]
+    ra = inData.o_ra[isGood]
+    dec = inData.o_dec[isGood]
+    mag = mag[:,isGood]
+    err = err[:,isGood]
+
+    # Write it all out
+    schema = pyfits.ColDefs([pyfits.Column(name="id", format="K"),
+                             pyfits.Column(name="ra", format="D"),
+                             pyfits.Column(name="dec", format="D")] +
+                            [pyfits.Column(name=name, format="E") for name in FILTERS] +
+                            [pyfits.Column(name=name + "_err", format="E") for name in FILTERS]
+                            )
+
+    outHdu = pyfits.new_table(schema, nrows=len(ident))
+    outData = outHdu.data
+
+    outData.ident = ident
+    outData.ra = ra
+    outData.dec = dec
+    for i, f in enumerate(FILTERS):
         outValue = outData.field(f)
         outErr = outData.field(f + "_err")
 
-        outValue[:] = numpy.where(badMean, numpy.where(badStack, numpy.nan, stack), mean)
-        outErr[:] = numpy.where(badMean, numpy.where(badStack, numpy.nan, stackErr), meanErr)
+        outValue[:] = mag[i,:]
+        outErr[:] = err[i,:]
 
     outHdu.writeto(outName, clobber=True)
-    print "Wrote %s" % outName
+    print "Wrote %d rows as %s" % (len(ident), outName)
     inFile.close()
 
 def system(command):
