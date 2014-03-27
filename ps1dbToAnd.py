@@ -66,7 +66,7 @@ def convert(inName, outName):
     outHdu = pyfits.new_table(schema, nrows=len(ident))
     outData = outHdu.data
 
-    outData.ident = ident
+    outData.id = ident
     outData.ra = ra
     outData.dec = dec
     for i, f in enumerate(FILTERS):
