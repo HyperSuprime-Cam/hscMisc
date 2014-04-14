@@ -12,7 +12,6 @@ SELECT o.objID AS o_objID, o.ra AS o_ra, o.dec AS o_dec, o.gMeanPSFMag AS o_gMea
 import re
 import os
 import glob
-import tempfile
 import multiprocessing
 from argparse import ArgumentParser
 
@@ -20,6 +19,28 @@ import numpy
 import pyfits
 
 FILTERS = "grizy"
+
+QUALITY = {'EXT': 0x0001, # extended in our data (eg, PS)
+           'EXT_ALT': 0x0002, # extended in external data (eg, 2MASS)
+           'GOOD': 0x0004, # good-quality measurement in our data (eg,PS)
+           'GOOD_ALT': 0x0008, # good-quality measurement in external data (eg, 2MASS)
+           'GOOD_STACK': 0x0010, # good-quality object in the stack (> 1 good stack)
+           'SUSPECT_STACK': 0x0020, # suspect object in the stack (> 1 good or suspect stack, less tham 2 good)
+           'BAD_STACK': 0x0040, # good-quality object in the stack (> 1 good stack)
+           }
+
+LIMITS_MEAN = {'g': 20.5,
+               'r': 21.0,
+               'i': 21.0,
+               'z': 20.0,
+               'y': 19.0,
+               }
+LIMITS_STACK = {'g': 21.5,
+                'r': 22.0,
+                'i': 22.0,
+                'z': 21.0,
+                'y': 20.0,
+                }
 
 def convert(inName, outName):
     if os.path.exists(outName):
@@ -33,17 +54,20 @@ def convert(inName, outName):
     mag = numpy.ndarray((5, len(inData)))
     err = numpy.ndarray((5, len(inData)))
 
+    quality = inData.field("o_qualityFlag")
+    extended = (quality & QUALITY['EXT']) == 0
+
     for i, f in enumerate(FILTERS):
         mean = inData.field("o_" + f + "MeanPSFMag")
         meanErr = inData.field("o_" + f + "MeanPSFMagErr")
-        badMean = mean == -999
+        badMean = (mean == -999) | ((quality & QUALITY['GOOD']) == 0) | (mean > LIMITS_MEAN[f])
 
         stack = inData.field("o_" + f + "StackPSFMag")
         stackErr = inData.field("o_" + f + "StackPSFMagErr")
-        badStack = stack == -999
+        badStack = (stack == -999) | ((quality & QUALITY['GOOD_STACK']) == 0) | (stack > LIMITS_STACK[f])
 
-        mag[i,:] = numpy.where(badMean, numpy.where(badStack, numpy.nan, stack), mean)
-        err[i,:] = numpy.where(badMean, numpy.where(badStack, numpy.nan, stackErr), meanErr)
+        mag[i,:] = numpy.where(badMean, numpy.where(extended | badStack, numpy.nan, stack), mean)
+        err[i,:] = numpy.where(badMean, numpy.where(extended | badStack, numpy.nan, stackErr), meanErr)
 
     numBad = numpy.isnan(mag).sum(axis=0)
     isBad = numBad > 3
