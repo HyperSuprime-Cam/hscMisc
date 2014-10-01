@@ -1,0 +1,3 @@
+setupRequired(astrometry_net)
+envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)
+envPrepend(PATH, ${PRODUCT_DIR}/bin)
